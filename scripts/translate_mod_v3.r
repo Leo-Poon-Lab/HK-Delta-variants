@@ -1,3 +1,4 @@
+library(Biostrings)
 
 getCodons <- function(myAln_new) {
     seqs <- as.character(myAln_new)
@@ -56,21 +57,33 @@ translateGappedAln <- function(myAln, unknownCodonTranslatesTo="X") {
 
     file_in <- "./tmp.fasta"
     file_out <- "./tmp_aln.fasta"
+    file_aa_ref <- "./tmp_ref_aa.fasta"
     writeXStringSet(myAAaln, file_in)
-    system(paste0("mafft --6merpair --thread -10 --keeplength --addfragments ", file_in, " ../results/MN908947_3_spike_aa.fasta > ", file_out)) #MAFFT
+    system(paste0("mafft --6merpair --thread -10 --keeplength --addfragments ", file_in, " ", file_aa_ref, " > ", file_out)) #MAFFT
     AAaln <- readAAStringSet(file_out)
     file.remove(file_in)
     file.remove(file_out)
+    file.remove(file_aa_ref)
     return(AAaln[-1])
 }
 
-get_spike_nt <- function(seq_nt){
+get_nt <- function(seq_nt, gene = "spike"){
     stopifnot(all(width(seq_nt) == 29903))
-    subseq(seq_nt, 21563, 25384)
+    orf <- read.csv("./ORF_SCoV2.csv")
+    idx <- which(tolower(orf$sequence) == tolower(gene))
+    stopifnot(length(idx)>0)
+    subseq(seq_nt, orf$start[idx], orf$stop[idx])
 }
 
-get_spike_AA <- function(seq_nt, unknownCodonTranslatesTo="X"){
-    myAln <- get_spike_nt(seq_nt)
+get_aa <- function(seq_nt, gene = "spike", unknownCodonTranslatesTo="X"){
+    myAln <- get_nt(seq_nt, gene = gene)
     myAln <- chartr("-", "N", myAln)
+    
+    ref_seq <- readDNAStringSet("./reference.fasta")
+    ref_seq_nt <- get_nt(ref_seq, gene)
+    ref_seq_aa <- translate(ref_seq_nt)
+    file_aa_ref <- "./tmp_ref_aa.fasta"
+    writeXStringSet(ref_seq_aa, file_aa_ref)
+
     translateGappedAln(myAln, unknownCodonTranslatesTo = unknownCodonTranslatesTo)
 }
