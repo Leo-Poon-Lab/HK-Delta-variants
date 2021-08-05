@@ -1,4 +1,7 @@
 data/
-results/
+results/*
+!/results/global_Imported_617_cotree.pdf
+!/results/Imported_617_hist.pdf
+!/results/Imported_2021_lineage.pdf
 snpEff_summary.html
 draft/
