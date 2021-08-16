@@ -57,7 +57,7 @@ seqs_hk_617 <- readDNAStringSet("../results/seqs_hk_delta.fasta")
 case_id_t <- sapply(strsplit(names(seqs_hk_617), "_"), function(x){x[length(x)]})
 seqs_hk_617 <- seqs_hk_617[!duplicated(case_id_t)]
 case_id_t <- sapply(strsplit(names(seqs_hk_617), "_"), function(x){x[length(x)]})
-seqs_hk_617 <- seqs_hk_617[case_id_t %in% data_delta$case_id]
+seqs_hk_617 <- seqs_hk_617[case_id_t %in% data_meta_delta$case_id]
 case_id_t <- sapply(strsplit(names(seqs_hk_617), "_"), function(x){x[length(x)]})
 
 df_Date <- data_meta %>% filter(case_id %in% case_id_t) %>% select(case_id, `Report date`)
@@ -67,4 +67,11 @@ names(df_Date)[3] <- "date"
 df_Date %>% select(name, date) %>% bind_rows(tibble(name = "MN908947_3", date = lubridate::ymd("2019-12-26"))) %>% write_csv("../results/seqs_hk_delta_ref_date.csv")
 
 seqs_hk_617_ref <- c(ref_seq, seqs_hk_617) 
+cov_check <- apply(alphabetFrequency(seqs_hk_617_ref), 1, function(x){
+	sum(x[1:4])
+})
+cov_check <- round(cov_check/29903*100, 2)
+quantile(cov_check)
+sort(cov_check*29903/100)
+
 writeXStringSet(seqs_hk_617_ref, "../results/seqs_hk_delta_ref.fasta")

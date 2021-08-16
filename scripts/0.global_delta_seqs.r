@@ -52,8 +52,8 @@ metadata$country <- sapply(metadata$Location, function(x){
 })
 table(metadata$country)
 set.seed(2021)
-metadata <- metadata %>% filter(!grepl("Hong Kong", Location)) %>% group_by(country, year, week) %>% mutate(idx = sample(n())) %>% ungroup()
-(metadata_sub <- metadata %>% filter(idx<=3))
+metadata <- metadata %>% filter(!grepl("Hong Kong", Location)) %>% group_by(country, year, week) %>% mutate(idx = sample(n())) %>% ungroup() #per country per week
+(metadata_sub <- metadata %>% filter(idx<=3)) # random 3
 
 sort(names(table(metadata$country)))
 
