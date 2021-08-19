@@ -11,6 +11,7 @@ library(patchwork)
 library(lubridate)
 library(writexl)
 library(RColorBrewer)
+source("./helper/save_pptx.r")
 
 data_meta <- read_csv("../../2021-06-24_merge_metadata/results/cleaned_metadata.csv", guess_max = 20000)
 data_delta <- readxl::read_excel("../results/metadata_hk_delta.xlsx")
@@ -44,7 +45,10 @@ data_meta_imported$sequenced <- data_meta_imported$case_id %in% df_lin$case_id
 data_meta_imported$lineage_raw <- data_meta_imported$lineage
 data_meta_imported$lineage[!data_meta_imported$sequenced] <- "Not sequenced"
 
-data_meta_imported %>% filter(`Report date`>= ymd("2021-03-27") & `Report date`<= ymd("2021-07-16")) %>% mutate(Month = month(`Report date`, label = T, abbr = F), Lineage = lineage_raw) %>% filter(!is.na(Lineage)) %>% group_by(Month, Lineage) %>% summarize(N=n()) %>% arrange(Month, desc(N)) %>% write_xlsx("../results/lineage_month.xlsx")
+df_lineage_month <- data_meta_imported %>% filter(`Report date`>= ymd("2021-03-27") & `Report date`<= ymd("2021-07-16")) %>% mutate(Month = month(`Report date`, label = T, abbr = F), Lineage = lineage_raw) %>% filter(!is.na(Lineage)) %>% group_by(Month, Lineage) %>% summarize(N=n(), Countries=paste0(names(table(`Country of importation`)), " (N=", table(`Country of importation`), ")", collapse = ", ")) %>% arrange(Month, desc(N)) %>% ungroup()
+df_lineage_month$Date <- factor(df_lineage_month$Month, levels = c("March", "April", "May", "June", "July"), labels = c("March-27 to March-31", "April-1 to April-30", "May-1 to May-31", "June-1 to June-30", "July-1 to July-16"))
+df_lineage_month <- df_lineage_month %>% select(-Month) %>% select(Date, everything())
+write_xlsx(df_lineage_month, "../results/lineage_month.xlsx")
 
 # we sequenced 48.96% (N=212) of all imported cases with Illumina NovaSeq/iSeq platform (Appendix Methods), and 53.27% (N=114) of them are Delta or Kappa variants.
 (num_seqed <- data_meta_imported %>% filter(`Report date`>= ymd("2021-03-27") & `Report date`<= ymd("2021-07-16")) %>% .$sequenced %>% table())
@@ -94,7 +98,7 @@ p_1 <- data_meta_imported %>% filter(`Report date` >= "2021-03-27") %>% ggplot()
 	ylab("No. of imported cases")+
 	NULL
 ggsave("../results/Imported_2021_lineage.pdf", width = 10, height = 6, plot = p_1)
-
+save_pptx(file="../results/Imported_2021_lineage.pptx", width = 10, height = 6, plot = p_1)
 
 # Inbound cases by countries
 df_plot <- data_meta_imported %>% filter(`Report date` >= "2021-01-01" & sequenced) %>% filter(grepl("617", lineage)
@@ -125,12 +129,12 @@ save(colors_countries_t, countries_t, file="./colors.rdata")
 # https://www.news.gov.hk/chi/2021/04/20210401/20210401_182214_863.html
 # https://www.info.gov.hk/gia/general/202104/18/P2021041800768.htm?fontSize=1
 #  https://travelbans.org/asia/hong-kong/
-date_start <- ymd(c("2021-04-20", "2021-05-01", "2021-06-25", "2021-07-01", "2021-05-26"))
-events <- c("India", "Nepal", "Indonesia", "The UK ban", "The UK resume")
-color_country <- colors_countries_t[c(1,2,3,4,4)]
-ploicy <- c(rep("Ban", 4), "Resume")
+date_start <- ymd(c("2021-03-25", "2021-03-25", "2021-04-20", "2021-04-20", "2021-04-20", "2021-05-01", "2021-06-25", "2021-07-01", "2021-05-26")) # 2021-03-25 are not exacet date but for plotting, correct date should be 2021-02-26
+events <- c("Brazil", "South Africa", "Pakistan", "The Philippines", "India", "Nepal", "Indonesia", "The UK/Ireland ban", "The UK/Ireland resume")
+color_country <- c("#000000", "#000000", "#000000", "#000000", colors_countries_t[c(1,2,3,4,4)])
+ploicy <- c(rep("Ban", 8), "Resume")
 df_sus <- tibble(`Report date`=date_start, events=events, color_country=color_country, `Flight policy`=ploicy, lineage_voc="Delta (N=70)")
-df_sus$y <- 10+c(1:4,4)/2
+df_sus$y <- 0+c(1:8,8)/2
 
 df_plot_sus <- bind_rows(df_plot, df_sus)
 
@@ -146,9 +150,10 @@ P_617_country <- df_plot_sus %>% filter(!is.na(case_id)) %>% ggplot()+
 	facet_wrap(vars(lineage_voc), ncol = 1)+
 	# theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
 	ylab("No. of imported cases")+	
+	theme(legend.position = c(0.8, 0.24), legend.background = element_rect(fill = "transparent", colour = "black"))+
 	NULL
 
-P_617_country_sus <- P_617_country + 
+P_617_country_sus <- ggplot(df_sus) + 
 	new_scale_color()+
 	geom_segment(aes(x = `Report date`, y = y, yend = y, color = color_country),
 		xend = ymd("2021-07-16"),
@@ -166,18 +171,30 @@ P_617_country_sus <- P_617_country +
 	geom_text_repel(aes(x = `Report date`, label = events, y = y, color = color_country),
 		# alpha = 0.8,
 		# nudge_x = -2,
-		nudge_y = 15-df_sus$y,
+		nudge_y = 8-df_sus$y,
 		# hjust = 1,
 		min.segment.length = 0.003, bg.color = "white", bg.r = 0.1, size = 3,
 		# segment.curvature = 0.5,
 		arrow = arrow(length = unit(0.015, "npc")),
 		data = df_sus)+
 	scale_color_identity()+
-	theme(legend.position = c(0.8, 0.24), legend.background = element_rect(fill = "transparent", colour = "black"))+
+	scale_x_date(date_breaks = "1 week", date_labels = "%b-%d", expand = c(0, 0), limits = c(ymd("2021-03-25"), ymd("2021-07-16")), guide = guide_axis(n.dodge = 2))+
+	theme_bw()+
+	theme(
+		axis.title.x=element_blank(),
+		axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.ticks.x=element_blank()
+		)+
+	ylim(0,10)+
 	NULL
 
-ggsave("../results/Imported_617_hist.pdf", width = 10, height = 8, plot = P_617_country_sus)
+p_617_cl <- P_617_country_sus + P_617_country + plot_layout(height = c(0.5, 2), ncol = 1) 
 
+ggsave("../results/Imported_617_hist.pdf", width = 8, height = 8*sqrt(2), plot = p_617_cl)
+save_pptx(file="../results/Imported_617_hist.pptx", width = 8, height = 8*sqrt(2), plot = p_617_cl)
 
 # chisq test
 names(df_plot)

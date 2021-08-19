@@ -5,12 +5,14 @@ library(ggtree)
 library(ggrepel)
 library(colorspace)
 library(ggnewscale)
+source("./helper/save_pptx.r")
 
 data_meta <- read_csv("../../2021-06-24_merge_metadata/results/cleaned_metadata.csv", guess_max = 20000)
 df_date <- read_tsv("../results/dates.tsv")
 seqs_hk_617_1 <- readDNAStringSet("../results/seqs_hk_delta_617.1.fasta")
 seqs_hk_617_2 <- readDNAStringSet("../results/seqs_hk_delta_617.2.fasta")
 date_meta_glo <- read_csv("../results/metadata_global_617_subset.csv")
+data_meta_hk <- readxl::read_xlsx("../results/metadata_hk_delta.xlsx")
 load("./colors.rdata")
 
 # system(paste0('~/softwares/iqtree-2.1.3-MacOSX/bin/iqtree2 -T 10 -m JC --redo -s ../results/seqs_hk_delta_ref.fasta -o "MN908947_3"'))
@@ -400,35 +402,101 @@ p_co_label_local <- p_co_label_1 +
 		color = "#a3a3a3", size = 3, nudge_x = -0.7, nudge_y = 5, bg.color = "white", bg.r = 0.1, min.segment.length = 0.003, segment.size= 0.5,
 		# arrow = arrow(length = unit(0.01, "npc")),
 		data = dd %>% filter(country == "Local" & isTip & x<2023 & grepl("Cluster_32", label_new)))+
-	geom_label_repel(label = "Local case C", 
+	geom_label_repel(label = "Local case B", 
 		color = "#a3a3a3", size = 3, nudge_x = -0.7, nudge_y = 5, bg.color = "white", bg.r = 0.1, min.segment.length = 0.003, segment.size= 0.5,
 		# arrow = arrow(length = unit(0.01, "npc")),
 		data = dd %>% filter(country == "Local" & isTip & x<2023 & grepl("Cluster_27", label_new)))
 
 ggsave("../results/global_Imported_617_cotree.pdf", width = 10, height = 10*sqrt(2), plot = p_co_label_local)
+save_pptx(width = 10, height = 10*sqrt(2), plot=p_co_label_local, file="../results/global_Imported_617_cotree.pptx")
 
 # comapre collection date 
-d2 %>% filter(!isTip) %>% filter(grepl("L116F", mutations_others))
-tip_b1 <- tree2$tip.label[phangorn::Descendants(tree2, 1981)[[1]]]
-date_b1 <- metadata_sub %>% filter(`Accession ID` %in% tip_b1)
+node_I <- d2 %>% filter(!isTip) %>% filter(grepl("2930L", mutations_others)) %>% .$node
+tip_I <- tree2$tip.label[phangorn::Descendants(tree2, node_I)[[1]]]
+date_I_glo <- metadata_sub %>% filter(`Accession ID` %in% tip_I)
+date_I_glo$Lineage <- "Delta I"
+date_I_glo$Type <- "Global"
 
-d2 %>% filter(!isTip) %>% filter(grepl("3750I", mutations_others))
-tip_b2 <- tree2$tip.label[phangorn::Descendants(tree2, 1784)[[1]]]
-date_b2 <- metadata_sub %>% filter(`Accession ID` %in% tip_b2)
+node_II <- d2 %>% filter(!isTip) %>% filter(grepl("L116F", mutations_others)) %>% .$node
+tip_II <- tree2$tip.label[phangorn::Descendants(tree2, node_II)[[1]]]
+date_II_glo <- metadata_sub %>% filter(`Accession ID` %in% tip_II)
+date_II_glo$Lineage <- "Delta II"
+date_II_glo$Type <- "Global"
 
-d2 %>% filter(!isTip) %>% filter(grepl("3646A", mutations_others))
-tip_a <- tree2$tip.label[phangorn::Descendants(tree2, 2229)[[1]]]
-date_a <- metadata_sub %>% filter(`Accession ID` %in% tip_a)
+node_III <- d2 %>% filter(!isTip) %>% filter(grepl("T3750I", mutations_others)) %>% .$node
+tip_III <- tree2$tip.label[phangorn::Descendants(tree2, node_III)[[1]]]
+date_III_glo <- metadata_sub %>% filter(`Accession ID` %in% tip_III)
+date_III_glo$Lineage <- "Delta III"
+date_III_glo$Type <- "Global"
 
-date_b <- bind_rows(date_b1, date_b2)
+node_IV <- d2 %>% filter(!isTip) %>% filter(grepl("D2980N", mutations_others)) %>% .$node
+tip_IV <- tree2$tip.label[phangorn::Descendants(tree2, node_IV)[[1]]]
+date_IV_glo <- metadata_sub %>% filter(`Accession ID` %in% tip_IV)
+date_IV_glo$Lineage <- "Delta IV"
+date_IV_glo$Type <- "Global"
 
-decimal2Date(median(Date2decimal(date_a$`Collection date`), na.rm = T))
-decimal2Date(median(Date2decimal(date_b$`Collection date`), na.rm = T))
-decimal2Date(median(Date2decimal(date_b1$`Collection date`), na.rm = T))
-decimal2Date(median(Date2decimal(date_b2$`Collection date`), na.rm = T))
+date_kappa_glo <- date_meta_glo %>% filter(`Pango lineage`=="B.1.617.1") 
+date_kappa_glo$Lineage <- "Kappa"
+date_kappa_glo$Type <- "Global"
 
+node_I <- d1 %>% filter(!isTip) %>% filter(grepl("2930L", mutations_others)) %>% .$node
+tip_I <- tree@phylo$tip.label[phangorn::Descendants(tree@phylo, node_I)[[1]]]
+case_id_I <- sapply(tip_I, function(x) {(x, "_")[[1]][2]})
+date_I_hk <- data_meta_hk %>% filter(case_id %in% case_id_I)
+date_I_hk$Lineage <- "Delta I"
+date_I_hk$Type <- "Hong Kong"
 
-wilcox.test(Date2decimal(date_a$`Collection date`), Date2decimal(date_b$`Collection date`))
-wilcox.test(Date2decimal(date_b1$`Collection date`), Date2decimal(date_b2$`Collection date`))
-wilcox.test(Date2decimal(date_b1$`Collection date`), Date2decimal(date_b2$`Collection date`))
-wilcox.test(Date2decimal(date_b1$`Collection date`), Date2decimal(date_a$`Collection date`))
+node_II <- d1 %>% filter(!isTip) %>% filter(grepl("L116F", mutations_others)) %>% .$node
+tip_II <- tree@phylo$tip.label[phangorn::Descendants(tree@phylo, node_II)[[1]]]
+case_id_II <- sapply(tip_II, function(x) {strsplit(x, "_")[[1]][2]})
+date_II_hk <- data_meta_hk %>% filter(case_id %in% case_id_II)
+date_II_hk$Lineage <- "Delta II"
+date_II_hk$Type <- "Hong Kong"
+
+node_III <- d1 %>% filter(!isTip) %>% filter(grepl("T3750I", mutations_others)) %>% .$node
+tip_III <- tree@phylo$tip.label[phangorn::Descendants(tree@phylo, node_III)[[1]]]
+case_id_III <- sapply(tip_III, function(x) {strsplit(x, "_")[[1]][2]})
+date_III_hk <- data_meta_hk %>% filter(case_id %in% case_id_III)
+date_III_hk$Lineage <- "Delta III"
+date_III_hk$Type <- "Hong Kong"
+
+tip_IV <- d1 %>% filter(isTip) %>% filter(y==44) %>% .$label
+case_id_IV <- sapply(tip_IV, function(x) {strsplit(x, "_")[[1]][2]})
+date_IV_hk <- data_meta_hk %>% filter(case_id %in% case_id_IV)
+date_IV_hk$Lineage <- "Delta IV"
+date_IV_hk$Type <- "Hong Kong"
+
+tip_kappa <- d1 %>% filter(isTip) %>% filter(is_617_1) %>% .$label
+case_id_kappa <- sapply(tip_kappa, function(x) {strsplit(x, "_")[[1]][2]})
+date_kappa_hk <- data_meta_hk %>% filter(case_id %in% case_id_kappa)
+date_kappa_hk$Lineage <- "Kappa"
+date_kappa_hk$Type <- "Hong Kong"
+
+df_date <- bind_rows(date_I_glo, date_II_glo, date_III_glo, date_IV_glo, date_kappa_glo,
+	date_I_hk, date_II_hk, date_III_hk, date_IV_hk, date_kappa_hk) 
+df_date <- df_date %>% select(Type, Lineage, `Collection date`, `Report date`, case_id, `Accession ID`)
+df_date$Date <- as.character(df_date$`Report date`)
+df_date$Date[is.na(df_date$Date)] <- df_date$`Collection date`[is.na(df_date$Date)]
+df_date$Date <- sapply(df_date$Date, function(x) {
+	tmp <- strsplit(x, "-", fixed=T)[[1]]
+	if(length(tmp)==3){
+		return(x)
+	} else if(length(tmp)==2){
+		return(paste0(x, "-01"))
+	} else{
+		return(NA)
+	}
+})# try to fix non-explicit date
+df_date$Date
+df_date$Date <- ymd(df_date$Date)
+
+df_date_hk_min <- df_date %>% filter(Type == "Hong Kong") %>% group_by(Lineage) %>% filter(Date==min(Date))
+df_date_plot <- bind_rows(df_date %>% filter(Type=="Global"), df_date_hk_min)
+
+plot_date_com <- ggplot(df_date_plot)+
+	geom_boxplot(aes(x = Lineage, y = Date, color = Type))+
+	scale_y_date(date_labels = "%b-%d")+
+	scale_colour_discrete_diverging(palette = "Blue-Red")+
+	theme_minimal()
+ggsave("../results/date_comparison.pdf", width=6, height=6/sqrt(2), plot=plot_date_com)
+save_pptx(width=6, height=6/sqrt(2), plot=plot_date_com, file="../results/date_comparison.pptx")
