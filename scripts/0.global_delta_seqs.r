@@ -84,3 +84,17 @@ df_date_hk$date <- as.character(df_date_hk$date)
 
 df_date_all <- bind_rows(df_date_hk, df_date_glo)
 write_csv(df_date_all, "../results/seqs_all_delta_ref_date.csv")
+
+
+## GISIAD acknoledgement table
+metadata_sub <- read_csv("../results/metadata_global_617_subset.csv")
+writeLines(metadata_sub$`Accession ID`, "../results/GISAID_id_global_617_subset.txt")
+### go to GISAID and download realated inforamtion
+metadata_sub <- read_tsv("../results/gisaid_auspice_input_hcov-19_2021_08_20_03/1629429848609.metadata.tsv")
+df_gisaid_ack <- metadata_sub %>% select(gisaid_epi_isl, originating_lab, submitting_lab, authors)
+names(df_gisaid_ack) <- c("Accession ID", "Originating Laboratory", "Submitting Laboratory", "Authors")
+
+df_gisaid_ack_tmp <- df_gisaid_ack[1:3,]
+df_gisaid_ack_tmp <- df_gisaid_ack_tmp %>% mutate_all(function(x) {return("")})
+df_gisaid_ack_tmp[,1] <- c("We gratefully acknowledge the following Authors from the Originating laboratories responsible for obtaining the specimens and the Submitting laboratories where genetic sequence data were generated and shared via the GISAID Initiative, on which this research is based.", "All Submitters of data may be contacted directly via www.gisaid.org", "Authors are sorted alphabetically")
+writexl::write_xlsx(bind_rows(df_gisaid_ack_tmp, df_gisaid_ack), "../results/GISAID_acknowledgement_table.xlsx")

@@ -304,6 +304,7 @@ d2$nudge_x = 0.1
 dd_label <- bind_rows(d1 %>% filter(!node %in% end_nodes), d2 %>% filter(!node %in% end_nodes2)) %>%
 	filter(!is.na(label)) %>%
 	filter(!isTip) %>%
+	filter(x<2022) %>% # only in HK tree
 	# filter(x<breaks_hk[6] | (x>2022 & x<breaks_glo[1])) %>% 
 	select(x, y, nudge_x, starts_with("mutations_")) %>% 
 	pivot_longer(starts_with("mutations_")) %>% 
@@ -328,9 +329,9 @@ p_co <- pp + geom_line(aes(x, y, group=label, color = country), data= dd %>% fil
 	# new_scale_color() +
 	geom_tree(data=d2, aes(color = country), size = 0.2, show.legend = F) +
 	# scale_color_manual(name = "Lineage", values = c("#7fc97f", "#80b1d3", "#beaed4"), guide = guide_legend(override.aes=aes(size = 4, alpha = 1, shape = 95)), na.value = "black", limits = paste0("B.1.617.", 1:3))+
-	new_scale_color() +
-	geom_text_repel(aes(label = value, color = name), size = 1.5, nudge_y = -0.3, bg.color = "white", bg.r = 0.1, min.segment.length = 0.003, segment.size= 0.2, data = dd_label)+
-	scale_color_manual(name = "Missense variant", limits = c("mutations_spike", "mutations_others"), labels = c("Spike", "Other genes"), values = c("#b2182b", "#2166ac"), guide = guide_legend(override.aes=aes(size = 4, alpha = 1, shape = 15)))+
+	# new_scale_color() +
+	geom_text_repel(aes(label = value), color = "#2166ac", size = 1.5, nudge_x = -0.1, nudge_y = -0.3, bg.color = "white", bg.r = 0.1, min.segment.length = 0.003, segment.size= 0.2, data = dd_label)+
+	# scale_color_manual(name = "Missense variant", limits = c("mutations_spike", "mutations_others"), labels = c("Spike", "Other genes"), values = c("#b2182b", "#2166ac"), guide = guide_legend(override.aes=aes(size = 4, alpha = 1, shape = 15)))+
 	# guides(colour = guide_legend(override.aes = list(size = 4, alpha = 1, shape = 15)))+
 	# theme(legend.key.width=unit(0.1,"cm"))+
 	NULL
@@ -399,11 +400,11 @@ p_co_label_1 <- label_clade(plot = p_co_label_1, data = d1, y1=y1_t, y2=y2_t, la
 # annotate local cases
 p_co_label_local <- p_co_label_1 +
 	geom_label_repel(label = "Local case A", 
-		color = "#a3a3a3", size = 3, nudge_x = -0.7, nudge_y = 5, bg.color = "white", bg.r = 0.1, min.segment.length = 0.003, segment.size= 0.5,
+		color = "#000000", size = 3, nudge_x = -0.7, nudge_y = 5, bg.color = "white", bg.r = 0.1, min.segment.length = 0.003, segment.size= 0.3,
 		# arrow = arrow(length = unit(0.01, "npc")),
 		data = dd %>% filter(country == "Local" & isTip & x<2023 & grepl("Cluster_32", label_new)))+
 	geom_label_repel(label = "Local case B", 
-		color = "#a3a3a3", size = 3, nudge_x = -0.7, nudge_y = 5, bg.color = "white", bg.r = 0.1, min.segment.length = 0.003, segment.size= 0.5,
+		color = "#000000", size = 3, nudge_x = -0.7, nudge_y = 5, bg.color = "white", bg.r = 0.1, min.segment.length = 0.003, segment.size= 0.3,
 		# arrow = arrow(length = unit(0.01, "npc")),
 		data = dd %>% filter(country == "Local" & isTip & x<2023 & grepl("Cluster_27", label_new)))
 
@@ -472,8 +473,9 @@ date_kappa_hk <- data_meta_hk %>% filter(case_id %in% case_id_kappa)
 date_kappa_hk$Lineage <- "Kappa"
 date_kappa_hk$Type <- "Hong Kong"
 
-df_date <- bind_rows(date_I_glo, date_II_glo, date_III_glo, date_IV_glo, date_kappa_glo,
-	date_I_hk, date_II_hk, date_III_hk, date_IV_hk, date_kappa_hk) 
+# collection date
+df_date <- bind_rows(date_I_glo, date_II_glo, date_III_glo, date_IV_glo,
+	date_I_hk, date_II_hk, date_III_hk, date_IV_hk) 
 df_date <- df_date %>% select(Type, Lineage, `Collection date`, `Report date`, case_id, `Accession ID`)
 df_date$Date <- as.character(df_date$`Report date`)
 df_date$Date[is.na(df_date$Date)] <- df_date$`Collection date`[is.na(df_date$Date)]
@@ -495,8 +497,41 @@ df_date_plot <- bind_rows(df_date %>% filter(Type=="Global"), df_date_hk_min)
 
 plot_date_com <- ggplot(df_date_plot)+
 	geom_boxplot(aes(x = Lineage, y = Date, color = Type))+
-	scale_y_date(date_labels = "%b-%d")+
+	scale_y_date(date_labels = "%b-%d-%Y", limits = c(min(df_date_plot$Date, na.rm=T), NA), date_breaks = "1 month")+
 	scale_colour_discrete_diverging(palette = "Blue-Red")+
 	theme_minimal()
 ggsave("../results/date_comparison.pdf", width=6, height=6/sqrt(2), plot=plot_date_com)
 save_pptx(width=6, height=6/sqrt(2), plot=plot_date_com, file="../results/date_comparison.pptx")
+
+# submission date
+df_date <- bind_rows(date_I_glo, date_II_glo, date_III_glo, date_IV_glo,
+	date_I_hk, date_II_hk, date_III_hk, date_IV_hk) 
+df_date <- df_date %>% select(Type, Lineage, `Submission date`, `Report date`, case_id, `Accession ID`)
+df_date$Date <- as.character(df_date$`Report date`)
+df_date$`Submission date` <- as.character(df_date$`Submission date`)
+df_date$Date[is.na(df_date$Date)] <- df_date$`Submission date`[is.na(df_date$Date)]
+df_date$Date <- sapply(df_date$Date, function(x) {
+	tmp <- strsplit(x, "-", fixed=T)[[1]]
+	if(length(tmp)==3){
+		return(x)
+	} else if(length(tmp)==2){
+		return(paste0(x, "-01"))
+	} else{
+		return(NA)
+	}
+})# try to fix non-explicit date
+df_date$Date
+df_date$Date <- ymd(df_date$Date)
+
+
+
+df_date_hk_min <- df_date %>% filter(Type == "Hong Kong") %>% group_by(Lineage) %>% filter(Date==min(Date))
+df_date_plot <- bind_rows(df_date %>% filter(Type=="Global"), df_date_hk_min)
+
+plot_date_com <- ggplot(df_date_plot)+
+	geom_boxplot(aes(x = Lineage, y = Date, color = Type))+
+	scale_y_date(date_labels = "%b-%d-%Y", limits = c(min(df_date_plot$Date, na.rm=T), NA), date_breaks = "1 month")+
+	scale_colour_discrete_diverging(palette = "Blue-Red")+
+	theme_minimal()
+ggsave("../results/date_comparison_submission_date.pdf", width=6, height=6/sqrt(2), plot=plot_date_com)
+save_pptx(width=6, height=6/sqrt(2), plot=plot_date_com, file="../results/date_comparison_submission_date.pptx")
