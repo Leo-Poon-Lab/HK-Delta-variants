@@ -13,29 +13,29 @@ library(writexl)
 library(RColorBrewer)
 source("./helper/save_pptx.r")
 
-data_meta <- read_csv("../../2021-06-24_merge_metadata/results/cleaned_metadata.csv", guess_max = 20000)
+data_meta_ori <- read_csv("../../2021-06-24_merge_metadata/results/cleaned_metadata.csv", guess_max = 20000)
 data_delta <- readxl::read_excel("../results/metadata_hk_delta.xlsx")
 seqs_hk_617 <- readDNAStringSet("../results/seqs_hk_delta.fasta")
-df_lin <- read_csv("../results/lineage.csv")
+data_coverage <- read_csv("../../../2020/2020-09-01_COVID_NGS_pipeline/COVID_NGS_pipeline_results_shared/coverage.csv")
+df_lin_ori <- read_csv("../results/lineage.csv")
 
-tail(data_meta)
-data_meta %>% filter(`Report date`>= ymd("2021-03-27")) %>% .$Classification %>% table()
-data_meta %>% filter(`Report date`>= ymd("2021-03-27")) %>% summarise(n =n(), n_imported = sum(Classification == "Imported"), p_imported = n_imported/n*100)
+data_meta_ori %>% filter(`Report date`>= ymd("2021-03-27")) %>% .$Classification %>% table()
+data_meta_ori %>% filter(`Report date`>= ymd("2021-03-27")) %>% summarise(n =n(), n_imported = sum(Classification == "Imported"), p_imported = n_imported/n*100)
 # HK adapted an elimination strategy to control COVID-19, and 83.8% (N=433) of all RT-PCR positive COVID-19 cases were imported cases 
 
-df_lin <- df_lin %>% filter(lineage != "None")
-df_lin$case_id <- sapply(df_lin$taxon, function(x){
+df_lin_ori$case_id <- sapply(df_lin_ori$taxon, function(x){
 	tmp <- strsplit(x, "_")[[1]]
 	tmp <- tmp[length(tmp)]
 })
-df_lin$case_id <- as.numeric(df_lin$case_id)
-df_lin <- df_lin %>% filter(!is.na(case_id))
+df_lin_ori$case_id <- as.numeric(df_lin_ori$case_id)
+df_lin_ori <- df_lin_ori %>% filter(!is.na(case_id))
+df_lin <- df_lin_ori %>% filter(lineage != "None")
 (df_lin_dup <- df_lin %>% select(case_id, lineage) %>% unique() %>% filter(case_id %in% case_id[duplicated(case_id)])) # WHP4602_11751 potential problematic sample
 df_lin <- df_lin %>% filter(taxon != "WHP4602_11751")
 (df_lin_dup <- df_lin %>% select(case_id, lineage) %>% unique() %>% filter(case_id %in% case_id[duplicated(case_id)]))
 df_lin <- df_lin %>% filter(!(case_id %in% df_lin_dup$case_id & grepl("iseq", taxon)))
 
-data_meta <- left_join(data_meta, df_lin %>% select(case_id, lineage) %>% unique())
+data_meta <- left_join(data_meta_ori, df_lin %>% select(case_id, lineage) %>% unique())
 
 data_meta_imported <- data_meta %>% filter(Classification == "Imported")
 table(data_meta$Classification)
@@ -45,6 +45,28 @@ data_meta_imported$sequenced <- data_meta_imported$case_id %in% df_lin$case_id
 data_meta_imported$lineage_raw <- data_meta_imported$lineage
 data_meta_imported$lineage[!data_meta_imported$sequenced] <- "Not sequenced"
 
+df_lin_more <- left_join(df_lin_ori, data_meta %>% select(case_id, `Report date`, Classification))
+df_lin_more$Sample <- sapply(df_lin_more$taxon, function(x){
+	strsplit(x, "_", fixed=T)[[1]][1]
+})
+df_lin_more <- left_join(df_lin_more, data_coverage)
+sum(df_lin_more$Sample %in% data_coverage$Sample)
+df_lin_more %>% filter(is.na(genome_coverage_over_5))
+func_paste <- function(x){
+	if(all(x==x[1])){return(x[1])}
+	x <- x[x!="."]
+	out <- paste(x, collapse = "/")
+}
+df_lin_more_sum <- df_lin_more %>% filter(`Report date`>= ymd("2021-03-27") & `Report date`<= ymd("2021-07-16")) %>% group_by(case_id) %>% summarise(lineage=func_paste(lineage), coverage_max=max(genome_coverage_over_5), taxon=taxon[which.max(genome_coverage_over_5)])
+data_meta_supp <- left_join(data_meta_ori, df_lin_more_sum %>% unique())
+data_meta_supp <- data_meta_supp %>% filter(`Report date`>= ymd("2021-03-27") & `Report date`<= ymd("2021-07-16"))
+data_meta_supp$Classification <- tolower(data_meta_supp$Classification)
+data_meta_supp_sum <- data_meta_supp %>% group_by(Classification, low_qual=lineage=="None") %>% summarise(n=n(), cov_min=min(coverage_max), cov_max=max(coverage_max), cov_med=median(coverage_max))
+data_meta_supp_sum %>% ungroup() %>% group_by(Classification) %>% mutate(prop=n/sum(n))
+
+seqs_in_this_study <- data_meta_supp %>% mutate(low_qual=lineage=="None") %>% filter(low_qual==FALSE, Classification=="imported") %>% .$taxon
+writeLines(seqs_in_this_study, "../results/seqs_in_this_study.txt")
+
 df_lineage_month <- data_meta_imported %>% filter(`Report date`>= ymd("2021-03-27") & `Report date`<= ymd("2021-07-16")) %>% mutate(Month = month(`Report date`, label = T, abbr = F), Lineage = lineage_raw) %>% filter(!is.na(Lineage)) %>% group_by(Month, Lineage) %>% summarize(N=n(), Countries=paste0(names(table(`Country of importation`)), " (N=", table(`Country of importation`), ")", collapse = ", ")) %>% arrange(Month, desc(N)) %>% ungroup()
 df_lineage_month$Date <- factor(df_lineage_month$Month, levels = c("March", "April", "May", "June", "July"), labels = c("March-27 to March-31", "April-1 to April-30", "May-1 to May-31", "June-1 to June-30", "July-1 to July-16"))
 df_lineage_month <- df_lineage_month %>% select(-Month) %>% select(Date, everything())
@@ -52,7 +74,7 @@ write_xlsx(df_lineage_month, "../results/lineage_month.xlsx")
 
 # we sequenced 48.96% (N=212) of all imported cases with Illumina NovaSeq/iSeq platform (Appendix Methods), and 53.27% (N=114) of them are Delta or Kappa variants.
 (num_seqed <- data_meta_imported %>% filter(`Report date`>= ymd("2021-03-27") & `Report date`<= ymd("2021-07-16")) %>% .$sequenced %>% table())
-round(num_seqed[names(num_seqed)=="TRUE"]/sum(num_seqed)*100,2) # proportion of sequenced cases after 2021-03-27
+round(num_seqed[names(num_seqed)=="TRUE"]/sum(num_seqed)*100,2) # proportion of high-quality sequenced cases after 2021-03-27
 num_lin <- data_meta_imported %>% filter(`Report date`>= ymd("2021-03-27") & `Report date`<= ymd("2021-07-16")) %>% filter(sequenced) %>% .$lineage %>% table()
 num_lin/sum(num_lin)
 sum(num_lin[grep("B.1.617", names(num_lin))])

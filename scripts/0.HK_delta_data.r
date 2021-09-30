@@ -75,3 +75,6 @@ quantile(cov_check)
 sort(cov_check*29903/100)
 
 writeXStringSet(seqs_hk_617_ref, "../results/seqs_hk_delta_ref.fasta")
+
+# check sequence coverage
+read_csv()
