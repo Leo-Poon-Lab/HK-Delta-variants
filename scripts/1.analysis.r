@@ -66,6 +66,9 @@ data_meta_supp_sum %>% ungroup() %>% group_by(Classification) %>% mutate(prop=n/
 
 seqs_in_this_study <- data_meta_supp %>% mutate(low_qual=lineage=="None") %>% filter(low_qual==FALSE, Classification=="imported") %>% .$taxon
 writeLines(seqs_in_this_study, "../results/seqs_in_this_study.txt")
+metadata_seqs_in_this_study <- data_meta_supp %>% mutate(low_qual=lineage=="None") %>% filter(low_qual==FALSE, Classification=="imported")
+write_csv(metadata_seqs_in_this_study, "../results/metadata_seqs_in_this_study.csv")
+
 
 df_lineage_month <- data_meta_imported %>% filter(`Report date`>= ymd("2021-03-27") & `Report date`<= ymd("2021-07-16")) %>% mutate(Month = month(`Report date`, label = T, abbr = F), Lineage = lineage_raw) %>% filter(!is.na(Lineage)) %>% group_by(Month, Lineage) %>% summarize(N=n(), Countries=paste0(names(table(`Country of importation`)), " (N=", table(`Country of importation`), ")", collapse = ", ")) %>% arrange(Month, desc(N)) %>% ungroup()
 df_lineage_month$Date <- factor(df_lineage_month$Month, levels = c("March", "April", "May", "June", "July"), labels = c("March-27 to March-31", "April-1 to April-30", "May-1 to May-31", "June-1 to June-30", "July-1 to July-16"))
