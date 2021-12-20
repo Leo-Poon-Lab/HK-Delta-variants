@@ -4,6 +4,8 @@
 
 ---
 
+[The paper is now available on the EID journal.](https://doi.org/10.3201/eid2801.211804)
+
 ## Abstract
 We sequenced 50% of COVID-19 cases recently imported to Hong Kong (N=212) and identified 70 cases infected by the Delta variants. The phylogeny of our Delta variant sequences is similar to the one built by using the global dataset, suggesting travel hubs can be used to monitor SARS-CoV-2 sequence diversity. 
 
